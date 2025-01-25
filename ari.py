@@ -12,8 +12,11 @@ ANDROID_USER_AGENTS = [
 ]
 
 # Fungsi log
-def log(message, color=Fore.WHITE):
-    print(f"{color}{message}{Style.RESET_ALL}")
+def log(message, color=Fore.WHITE, current=None, total=None):
+    if current is not None and total is not None:
+        print(f"{color}{message} [{current}/{total}]{Style.RESET_ALL}")
+    else:
+        print(f"{color}{message}{Style.RESET_ALL}")
 
 # Fungsi auto transfer
 def auto_transfer(email, password, to_address, headers, proxy=None):
@@ -48,6 +51,39 @@ def auto_transfer(email, password, to_address, headers, proxy=None):
             return False
     except requests.RequestException as e:
         log(f"[ERROR] Auto-transfer dari {email} gagal: {e}", Fore.RED)
+        return False
+
+# Fungsi auto check-in
+def auto_checkin(address, proxy_dict, headers, current=None, total=None):
+    url = "https://arichain.io/api/event/checkin"
+    payload = {
+        'blockchain': "testnet",
+        'address': address,
+        'lang': "en",
+        'device': "app",
+        'is_mobile': "Y"
+    }
+
+    try:
+        response = requests.post(url, data=payload, headers=headers, proxies=proxy_dict, timeout=120)
+        response.raise_for_status()
+
+        # Coba untuk mem-parsing response sebagai JSON
+        try:
+            data = response.json()
+        except ValueError:
+            # Jika respons bukan JSON yang valid, tampilkan respons mentah untuk debugging
+            log(f"Response tidak valid JSON: {response.text}", Fore.RED, current, total)
+            return False
+
+        # Mengecek status JSON
+        if data.get('status') == 'success':
+            log("Success claim Daily", Fore.GREEN, current, total)
+            return True
+        log("Daily claim failed", Fore.RED, current, total)
+        return False
+    except requests.exceptions.RequestException as e:
+        log(f"Daily claim error: {str(e)}", Fore.RED, current, total)
         return False
 
 # Fungsi utama
@@ -102,26 +138,37 @@ def main():
                 # Akun sumber
                 email, password, _, _ = formatted_accounts[i]
 
-                # Akun tujuan (berikutnya dalam daftar)
-                next_index = (i + 1) % len(formatted_accounts)
-                to_address = formatted_accounts[next_index][2]
+                # Akun tujuan (semua akun berikutnya)
+                for j in range(i + 1, len(formatted_accounts)):
+                    to_address = formatted_accounts[j][2]
 
-                # Pilih proxy secara acak jika tersedia
-                proxy = random.choice(proxies) if proxies else None
-                if proxy:
-                    log(f"[INFO] Menggunakan proxy: {proxy}", Fore.CYAN)
+                    # Pilih proxy secara acak jika tersedia
+                    proxy = random.choice(proxies) if proxies else None
+                    if proxy:
+                        log(f"[INFO] Menggunakan proxy: {proxy}", Fore.CYAN)
 
-                # Melakukan transfer
-                log(f"[INFO] Mengirim dari {email} ke {to_address}", Fore.CYAN)
-                success = auto_transfer(email, password, to_address, headers, proxy)
+                    # Melakukan transfer
+                    log(f"[INFO] Mengirim dari {email} ke {to_address}", Fore.CYAN)
+                    success = auto_transfer(email, password, to_address, headers, proxy)
 
-                # Jika transfer gagal, lanjut ke akun berikutnya
+                    # Jika transfer gagal, lanjut ke akun berikutnya
+                    if not success:
+                        log(f"[WARNING] Transfer dari {email} gagal, melanjutkan akun berikutnya.", Fore.YELLOW)
+
+                # Melakukan check-in setelah transfer
+                log(f"[INFO] Melakukan check-in untuk {email}...", Fore.CYAN)
+                success = auto_checkin(formatted_accounts[i][2], proxies, headers, current=i + 1, total=len(formatted_accounts))
+
                 if not success:
-                    log(f"[WARNING] Transfer dari {email} gagal, melanjutkan akun berikutnya.", Fore.YELLOW)
+                    log(f"[WARNING] Check-in untuk {email} gagal, melanjutkan transfer.", Fore.YELLOW)
 
-                # Jeda waktu 10 menit per transaksi
-                log("[INFO] Menunggu 5 menit sebelum transfer berikutnya...\n", Fore.CYAN)
-                time.sleep(300)  # Jeda waktu 10 menit
+                # Jeda waktu 50 detik per transaksi
+                log("[INFO] Menunggu 50 detik sebelum transfer berikutnya...\n", Fore.CYAN)
+                time.sleep(50)
+
+            # Menunggu 24 jam sebelum memulai ulang dari awal
+            log("[INFO] Semua akun sudah diproses, menunggu 24 jam untuk pengulangan...\n", Fore.CYAN)
+            time.sleep(86400)  # 24 jam
     except KeyboardInterrupt:
         log("\n[INFO] Loop transfer dihentikan oleh pengguna.", Fore.YELLOW)
 

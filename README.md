@@ -42,16 +42,6 @@ git clone https://github.com/NubiZen/ari-auto-tx
 cd ari-auto-tx
 ```  
 
-### Windows dan Termux:  
-```bash  
-pip install -r requirements.txt  
-```  
-
-### Unix/Linux:  
-```bash  
-pip3 install -r requirements.txt  
-```  
-
 ## Menjalankan Bot  
 1. Ganti file `accounts.txt` dengan format:  
    ```
@@ -76,7 +66,8 @@ pip3 install -r requirements.txt
      ```  
 
 ## Catatan  
-- Bot ini memiliki jeda waktu 5 menit per transaksi dengan jumlah transfer sebesar 1 ARI.  
+- Bot ini memiliki jeda waktu 50 detik per transaksi dengan jumlah transfer sebesar 1 ARI.
+- Bot auto loop setiap 24 Jam apabila semua transaksi sudah berhasil.  
 - Penggunaan proxy bersifat opsional. Jika tidak ada proxy, bot akan berjalan tanpa proxy.  
 - Harap gunakan script ini dengan tanggung jawab. Saya tidak bertanggung jawab atas kerugian atau kerusakan akibat penggunaan bot ini.  
 - Bot ini hanya untuk tujuan edukasi.  
